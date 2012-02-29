@@ -14,6 +14,14 @@ import javax.microedition.rms.RecordStoreException;
  */
 public class HighScore {
 
+    // Local variables
+    private String[] names;
+    private int[] scores;
+    private RecordStore rs = null;
+    private final String recordStoreName;
+    private int indexOfLastEntry = 10;
+    private String defaultName = "";
+
     public HighScore(final String recordStoreName) {
         this.recordStoreName = recordStoreName;
         names = new String[10];
@@ -32,20 +40,9 @@ public class HighScore {
         }
     }
 
-    private void readRecords() throws RecordStoreException {
-        byte[] data;
-        int len;
-        for (int i = 1; i <= rs.getNumRecords() && i <= 10; i++) {
-            data = new byte[rs.getRecordSize(i)];
-            len = rs.getRecord(i, data, 0);
-            String tmp = new String(data, 0, len);
-            names[i - 1] = tmp.substring(0, tmp.indexOf(","));
-            scores[i - 1] = Integer.parseInt(tmp.substring(tmp.indexOf(",") + 1, tmp.length()));
-        }
-    }
-
     public void addRecord(String name, int score) {
-
+        defaultName = name;
+        indexOfLastEntry = 10;
         for (int i = 0; i < names.length; ++i) {
             if (scores[i] < score) {
                 for (int j = names.length - 1; j > i; --j) {
@@ -68,10 +65,42 @@ public class HighScore {
         rs = null;
     }
 
+    public String getDefaultName() {
+        return defaultName;
+    }
+
+    public boolean isRecord(int score) {
+        return score > scores[scores.length - 1];
+    }
+
+    private void readRecords() throws RecordStoreException {
+        byte[] data;
+        int len;
+        for (int i = 1; i <= rs.getNumRecords() && i <= 10; i++) {
+            data = new byte[rs.getRecordSize(i)];
+            len = rs.getRecord(i, data, 0);
+            String tmp = new String(data, 0, len);
+            names[i - 1] = tmp.substring(0, tmp.indexOf(","));
+            scores[i - 1] = Integer.parseInt(tmp.substring(tmp.indexOf(",") + 1, tmp.length()));
+        }
+        try {
+            data = new byte[rs.getRecordSize(11)];
+            len = rs.getRecord(11, data, 0);
+            defaultName = new String(data, 0, len);
+        } catch (Exception e) {
+            defaultName = "";
+        }
+    }
+
     private void writeRecords(RecordStore recStore) {
         int i = 1;
-        for (int p = 0; p < names.length; p++) {
-            byte[] rec = (names[p] + "," + scores[p]).getBytes();
+        for (int p = 0; p < names.length + 1; p++) {
+            byte[] rec;
+            if (p < names.length) {
+                rec = (names[p] + "," + scores[p]).getBytes();
+            } else {
+                rec = defaultName.getBytes();
+            }
             try {
                 if (recStore.getNextRecordID() > i) {
                     recStore.setRecord(i++, rec, 0, rec.length);
@@ -102,10 +131,4 @@ public class HighScore {
             }
         }
     }
-    // Local variables
-    private String[] names;
-    private int[] scores;
-    private RecordStore rs = null;
-    private final String recordStoreName;
-    private int indexOfLastEntry = 10;
 }
